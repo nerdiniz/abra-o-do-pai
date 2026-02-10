@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Migrating Novenas Data (Fix Encoding)</title>
+</head>
+
+<body>
+    <h1>Migrating Novenas Data to Firestore (Fixing Encoding)...</h1>
+    <div id="log"></div>
+    <script src="novenas_data.js" charset="UTF-8"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            projectId: "abracodopai-18383",
+            appId: "1:150892835100:web:f2b07b90f1e6e0c1290ad9",
+            storageBucket: "abracodopai-18383.firebasestorage.app",
+            apiKey: "AIzaSyCw9Ts0OgCqdnrLA4cdTXPmByXEqfa46bM",
+            authDomain: "abracodopai-18383.firebaseapp.com",
+            messagingSenderId: "150892835100",
+            measurementId: "G-3G3X574JHS"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        async function migrate() {
+            const data = window.novenasData;
+            if (!data || !Array.isArray(data)) {
+                document.body.innerHTML += "<h2 style='color:red'>DATA NOT FOUND OR INVALID</h2>";
+                return;
+            }
+
+            const logDiv = document.getElementById('log');
+            let count = 0;
+
+            try {
+                for (const item of data) {
+                    const { image, ...cleanItem } = item;
+                    // Overwrite document to fix text
+                    await setDoc(doc(db, "novena_catalog", item.id), cleanItem);
+                    count++;
+                    logDiv.innerHTML += `<div>Synced ${item.id} - ${item.title}</div>`;
+                }
+                document.body.innerHTML += `<h2 style='color:green'>MIGRATION COMPLETE: ${count} items synced. Refresh the app now.</h2>`;
+            } catch (e) {
+                console.error(e);
+                document.body.innerHTML += `<h2 style='color:red'>ERROR: ${e.message}</h2>`;
+            }
+        }
+
+        migrate();
+    </script>
+</body>
+
+</html>

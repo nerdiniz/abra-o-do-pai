@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Mail, Lock, LogIn, ArrowRight } from 'lucide-react';
+import { Mail, Lock, LogIn, ArrowRight, Cross } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import { auth } from '../../firebase';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { auth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from '../../firebase';
 
 interface LoginProps {
     onRegisterClick: () => void;
@@ -41,11 +40,11 @@ const Login: React.FC<LoginProps> = ({ onRegisterClick, onLoginSuccess }) => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-stone-50 dark:bg-stone-950 transition-colors duration-300">
+        <div className="min-h-screen flex items-center justify-center p-6 bg-stone-50 dark:bg-stone-950 transition-colors duration-300 overflow-y-auto">
             <div className="max-w-md w-full">
                 <div className="text-center mb-10">
                     <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gold-400 shadow-xl shadow-gold-200/50 dark:shadow-none mb-6">
-                        <LogIn size={40} className="text-white" />
+                        <Cross size={40} className="text-white" />
                     </div>
                     <h1 className="font-serif text-4xl font-bold text-stone-800 dark:text-stone-100 mb-2">Abraço do Pai</h1>
                     <p className="text-stone-500 dark:text-stone-400">Entre na sua jornada de fé e oração.</p>

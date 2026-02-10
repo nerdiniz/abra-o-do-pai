@@ -5,6 +5,7 @@ import { CheckCircle, Circle, ChevronRight, Play, Minus, Plus, Clock, X, Flame }
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import ProgressBar from '../components/ui/ProgressBar';
+import { auth, db, doc, getDoc, updateDoc, serverTimestamp } from '../firebase';
 
 interface CandleData {
   id: string;
@@ -22,7 +23,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ stats, updateStats, novenas, userName }) => {
-  const [tasks, setTasks] = useState<Array<{ id: number; title: string; subtitle: string; completed: boolean }>>([]);
+  const [tasks, setTasks] = useState<Array<{ id: string; title: string; subtitle: string; completed: boolean; type?: 'novena' | 'rosary'; originalNovena?: Novena }>>([]);
   const [psalm, setPsalm] = useState<{ reference: string; text: string } | null>(null);
   const [loadingPsalm, setLoadingPsalm] = useState(true);
   const [activeCandle, setActiveCandle] = useState<CandleData | null>(null);
@@ -31,15 +32,24 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, updateStats, novenas, user
   const [candleHours, setCandleHours] = useState(24);
   const [timeLeft, setTimeLeft] = useState('');
   const [savingCandle, setSavingCandle] = useState(false);
+  const [updating, setUpdating] = useState(false);
+
+  const isToday = (firebaseDate: any) => {
+    if (!firebaseDate) return false;
+    try {
+      // Handle both Firestore Timestamp and JS Date/ISO string
+      const date = firebaseDate.toDate ? firebaseDate.toDate() : new Date(firebaseDate);
+      return date.toDateString() === new Date().toDateString();
+    } catch (err) {
+      return false;
+    }
+  };
 
   // Sync Candle from Firestore
   React.useEffect(() => {
     const fetchCandle = async () => {
       try {
-        const { auth } = await import("../firebase.js") as any;
         if (auth.currentUser) {
-          const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js") as any;
-          const { db } = await import("../firebase.js") as any;
           const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
           if (userDoc.exists()) {
             const data = userDoc.data();
@@ -90,11 +100,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, updateStats, novenas, user
     if (!candleIntention.trim()) return;
     setSavingCandle(true);
     try {
-      const { auth } = await import("../firebase.js") as any;
       if (auth.currentUser) {
-        const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js") as any;
-        const { db } = await import("../firebase.js") as any;
-
         const start = new Date();
         const end = new Date(start.getTime() + candleHours * 60 * 60 * 1000);
 
@@ -121,11 +127,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, updateStats, novenas, user
 
   const handleExtinguishCandle = async () => {
     try {
-      const { auth } = await import("../firebase.js") as any;
       if (auth.currentUser) {
-        const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js") as any;
-        const { db } = await import("../firebase.js") as any;
-
         await updateDoc(doc(db, "users", auth.currentUser.uid), { activeCandle: null });
         setActiveCandle(null);
       }
@@ -154,12 +156,34 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, updateStats, novenas, user
     fetchPsalm();
   }, []);
 
-  const toggleTask = (id: number) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  const toggleTask = async (id: string) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task || task.completed) return; // Only allow completing
+
+    // Implementation logic for different types
+    if (task.type === 'novena' && task.originalNovena && auth.currentUser) {
+      const novena = task.originalNovena;
+      if (novena.currentDay < novena.totalDays) {
+        const ref = doc(db, "users", auth.currentUser.uid, "novenas", novena.id);
+        await updateDoc(ref, {
+          currentDay: novena.currentDay + 1,
+          lastPrayedAt: serverTimestamp()
+        });
+      }
+    } else if (task.type === 'rosary') {
+      updateStats({
+        ...stats,
+        rosariesPrayed: (stats.rosariesPrayed || 0) + 1,
+        lastRosaryAt: serverTimestamp()
+      });
+    }
+
+    // Refresh tasks locally immediately for better UX
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: true } : t));
   };
 
-  const incrementMass = () => updateStats({ ...stats, massCount: stats.massCount + 1 });
-  const decrementMass = () => updateStats({ ...stats, massCount: Math.max(0, stats.massCount - 1) });
+  const incrementMass = () => updateStats({ ...stats, massCount: (stats.massCount || 0) + 1 });
+  const decrementMass = () => updateStats({ ...stats, massCount: Math.max(0, (stats.massCount || 0) - 1) });
 
   const completedTasks = tasks.length > 0 ? tasks.filter(t => t.completed).length : 0;
   const progressData = [
@@ -167,6 +191,48 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, updateStats, novenas, user
     { name: 'Pendente', value: tasks.length > 0 ? tasks.length - completedTasks : 1 }, // Show 1 for pending if empty to avoid chart errors
   ];
   const COLORS = ['#fbbd24', '#e7e5e4']; // gold-400, stone-200
+
+  // Effect to sync dynamic tasks
+  React.useEffect(() => {
+    const dynamicTasks = [];
+
+    // Add Rosary if toggled
+    if (stats.rosaryFixedTask) {
+      const mysteriesMap: Record<string, string> = {
+        'Segunda-feira': 'Gozosos',
+        'Terça-feira': 'Dolorosos',
+        'Quarta-feira': 'Gloriosos',
+        'Quinta-feira': 'Luminosos',
+        'Sexta-feira': 'Dolorosos',
+        'Sábado': 'Gozosos',
+        'Domingo': 'Gloriosos'
+      };
+      const todayPt = new Date().toLocaleDateString('pt-BR', { weekday: 'long' });
+      const currentMysterySet = mysteriesMap[todayPt.charAt(0).toUpperCase() + todayPt.slice(1)] || 'Gozosos';
+
+      dynamicTasks.push({
+        id: 'rosary-task',
+        title: 'Rezar o Santo Terço',
+        subtitle: `Mistérios ${currentMysterySet}`,
+        completed: isToday(stats.lastRosaryAt),
+        type: 'rosary'
+      });
+    }
+
+    // Add Active Novenas
+    novenas.filter(n => n.status === 'active').forEach(n => {
+      dynamicTasks.push({
+        id: `novena-${n.id}`,
+        title: `Novena: ${n.title}`,
+        subtitle: `Dia ${n.currentDay} de ${n.totalDays}`,
+        completed: isToday(n.lastPrayedAt),
+        type: 'novena',
+        originalNovena: n
+      });
+    });
+
+    setTasks(dynamicTasks as any);
+  }, [novenas, stats.rosaryFixedTask, stats.lastRosaryAt]);
 
   const date = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -182,7 +248,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, updateStats, novenas, user
         {!loadingPsalm && psalm && (
           <Card className="p-4 md:p-5 border-l-4 border-l-gold-400 max-w-full md:max-w-md italic text-stone-600 dark:text-stone-400 text-sm md:text-base">
             "{psalm.text.length > 150 ? psalm.text.substring(0, 150) + '...' : psalm.text}"
-            <span className="block text-right text-[10px] md:text-xs font-bold text-gold-600 dark:text-gold-500 mt-2 not-italic">— {psalm.reference}</span>
+            <span className="block text-right text-xs md:text-sm font-bold text-gold-600 dark:text-gold-500 mt-2 not-italic">— {psalm.reference}</span>
           </Card>
         )}
       </header>
@@ -257,21 +323,48 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, updateStats, novenas, user
 
             <div className="flex gap-6 overflow-x-auto pb-4 scroll-hide min-h-[100px] items-center">
               {novenas.length > 0 ? novenas.slice(0, 3).map(novena => (
-                <Card key={novena.id} className="min-w-[280px] p-5 group">
-                  <div className="flex items-center gap-4 mb-4">
-                    <img src={novena.image} alt={novena.title} className="w-12 h-12 rounded-xl object-cover shadow-sm" />
-                    <div>
-                      <h4 className="font-bold text-stone-800 dark:text-stone-100">{novena.title}</h4>
-                      <p className="text-xs text-stone-500 dark:text-stone-400">Dia {novena.currentDay} de {novena.totalDays}</p>
+                <Card key={novena.id} className="min-w-[280px] p-5 group flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-4 mb-3">
+                      <img src={novena.image} alt={novena.title} className="w-12 h-12 rounded-xl object-cover shadow-sm" />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-stone-800 dark:text-stone-100 truncate">{novena.title}</h4>
+                        <p className="text-[10px] text-gold-600 dark:text-gold-500 font-bold uppercase tracking-widest">
+                          Dia {novena.currentDay} de {novena.totalDays}
+                        </p>
+                      </div>
                     </div>
+                    {novena.intention && (
+                      <p className="text-[11px] text-stone-500 dark:text-stone-400 italic mb-4 line-clamp-2 leading-relaxed">
+                        "{novena.intention}"
+                      </p>
+                    )}
+                    <ProgressBar current={novena.currentDay} total={novena.totalDays} className="mb-4 h-1.5" />
                   </div>
-                  <ProgressBar current={novena.currentDay} total={novena.totalDays} className="mb-2" />
-                  <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-xs text-gold-600 dark:text-gold-500 font-bold flex items-center uppercase tracking-wider">Continuar <ChevronRight size={14} /></span>
+                  <div className="flex items-center justify-between mt-2">
+                    <button
+                      onClick={async () => {
+                        if (auth.currentUser && novena.currentDay < novena.totalDays) {
+                          const ref = doc(db, "users", auth.currentUser.uid, "novenas", novena.id);
+                          await updateDoc(ref, {
+                            currentDay: novena.currentDay + 1,
+                            lastPrayedAt: serverTimestamp()
+                          });
+                        }
+                      }}
+                      className="text-[10px] font-bold text-gold-600 dark:text-gold-500 hover:text-gold-700 uppercase tracking-widest flex items-center gap-1 group/btn"
+                    >
+                      <Play size={12} className="fill-current" /> Rezar Dia {novena.currentDay}
+                    </button>
+                    <span className="text-[10px] text-stone-400 font-bold">
+                      {Math.round((novena.currentDay / novena.totalDays) * 100)}%
+                    </span>
                   </div>
                 </Card>
               )) : (
-                <p className="text-stone-400 dark:text-stone-500 text-sm italic">Nenhuma novena em andamento.</p>
+                <div className="bg-stone-50/50 dark:bg-stone-900/30 rounded-2xl border border-dashed border-stone-200 dark:border-stone-800 p-8 w-full text-center">
+                  <p className="text-stone-400 dark:text-stone-500 text-sm italic">Nenhuma novena em andamento.</p>
+                </div>
               )}
             </div>
           </section>
@@ -376,7 +469,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, updateStats, novenas, user
       {/* Candle Modal */}
       {showCandleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <Card className="w-full max-w-md p-0 overflow-hidden shadow-2xl border-gold-200/50">
+          <Card className="w-full max-w-md p-0 overflow-hidden shadow-2xl border-gold-200/50 max-h-[90vh] flex flex-col">
             <div className="p-6 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between bg-stone-50 dark:bg-stone-850">
               <h3 className="font-serif text-xl font-bold text-stone-800 dark:text-stone-100 flex items-center gap-2">
                 <Flame size={20} className="text-gold-500" /> Acender uma Vela
@@ -386,7 +479,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, updateStats, novenas, user
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 overflow-y-auto">
               <div>
                 <label className="block text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-widest mb-2">Sua Intenção (máx. 100 letras)</label>
                 <textarea

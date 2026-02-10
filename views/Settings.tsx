@@ -2,6 +2,7 @@ import React from 'react';
 import { User, Bell, Shield, Moon, Sun, ChevronRight, Check, X, Lock } from 'lucide-react';
 import { useTheme } from '../components/ThemeProvider';
 import Card from '../components/ui/Card';
+import { auth, db, doc, getDoc, updateDoc, sendPasswordResetEmail } from '../firebase';
 
 const Settings: React.FC = () => {
    const { theme, toggleTheme } = useTheme();
@@ -10,6 +11,19 @@ const Settings: React.FC = () => {
       email: string;
       sacraments?: string[];
       sacramentDates?: Record<string, string>;
+      address?: {
+         cep: string;
+         street: string;
+         number: string;
+         complement: string;
+         neighborhood: string;
+         city: string;
+         state: string;
+      };
+      holyOrdersDetails?: {
+         level: 'Diácono' | 'Padre' | 'Bispo' | '';
+         idCard: string;
+      };
    } | null>(null);
    const [loading, setLoading] = React.useState(true);
    const [isEditingName, setIsEditingName] = React.useState(false);
@@ -31,12 +45,8 @@ const Settings: React.FC = () => {
    React.useEffect(() => {
       const fetchProfile = async () => {
          try {
-            const { auth } = await import("../firebase.js") as any;
-            const firebaseUser = auth.currentUser;
-            if (firebaseUser) {
-               const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js") as any;
-               const { db } = await import("../firebase.js") as any;
-               const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+            if (auth.currentUser) {
+               const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
                if (userDoc.exists()) {
                   const data = userDoc.data();
                   setUserProfile(data);
@@ -56,9 +66,6 @@ const Settings: React.FC = () => {
       if (!newName.trim()) return;
       setSaving(true);
       try {
-         const { auth } = await import("../firebase.js") as any;
-         const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js") as any;
-         const { db } = await import("../firebase.js") as any;
          if (auth.currentUser) {
             await updateDoc(doc(db, "users", auth.currentUser.uid), { name: newName });
             setUserProfile(prev => prev ? { ...prev, name: newName } : null);
@@ -90,9 +97,6 @@ const Settings: React.FC = () => {
       }
 
       try {
-         const { auth } = await import("../firebase.js") as any;
-         const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js") as any;
-         const { db } = await import("../firebase.js") as any;
          if (auth.currentUser) {
             await updateDoc(doc(db, "users", auth.currentUser.uid), { sacraments: updatedSacraments });
             setUserProfile(prev => prev ? { ...prev, sacraments: updatedSacraments } : null);
@@ -106,9 +110,6 @@ const Settings: React.FC = () => {
       const updatedDates = { ...(userProfile?.sacramentDates || {}), [sacrament]: date };
 
       try {
-         const { auth } = await import("../firebase.js") as any;
-         const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js") as any;
-         const { db } = await import("../firebase.js") as any;
          if (auth.currentUser) {
             await updateDoc(doc(db, "users", auth.currentUser.uid), { sacramentDates: updatedDates });
             setUserProfile(prev => prev ? { ...prev, sacramentDates: updatedDates } : null);
@@ -118,10 +119,34 @@ const Settings: React.FC = () => {
       }
    };
 
+   const handleUpdateAddress = async (field: string, value: string) => {
+      const updatedAddress = { ...(userProfile?.address || { cep: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: '' }), [field]: value };
+
+      try {
+         if (auth.currentUser) {
+            await updateDoc(doc(db, "users", auth.currentUser.uid), { address: updatedAddress });
+            setUserProfile(prev => prev ? { ...prev, address: updatedAddress } : null);
+         }
+      } catch (err) {
+         console.error("Error updating address:", err);
+      }
+   };
+
+   const handleUpdateHolyOrders = async (field: string, value: string) => {
+      const updatedDetails = { ...(userProfile?.holyOrdersDetails || { level: '', idCard: '' }), [field]: value };
+
+      try {
+         if (auth.currentUser) {
+            await updateDoc(doc(db, "users", auth.currentUser.uid), { holyOrdersDetails: updatedDetails });
+            setUserProfile(prev => prev ? { ...prev, holyOrdersDetails: updatedDetails } : null);
+         }
+      } catch (err) {
+         console.error("Error updating holy orders:", err);
+      }
+   };
+
    const handleResetPassword = async () => {
       try {
-         const { auth } = await import("../firebase.js") as any;
-         const { sendPasswordResetEmail } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js") as any;
          if (userProfile?.email) {
             await sendPasswordResetEmail(auth, userProfile.email);
             alert("E-mail de redefinição de senha enviado!");
@@ -133,7 +158,6 @@ const Settings: React.FC = () => {
    };
 
    const handleSignOut = async () => {
-      const { auth } = await import("../firebase.js") as any;
       await auth.signOut();
       window.location.reload();
    };
@@ -141,7 +165,7 @@ const Settings: React.FC = () => {
    return (
       <div className="max-w-2xl mx-auto py-8 px-4">
          <h1 className="font-serif text-3xl font-bold text-stone-800 dark:text-stone-100 mb-2 text-center">Configurações</h1>
-         <p className="text-center text-stone-501 dark:text-stone-400 mb-8 text-sm px-4">Gerencie sua caminhada espiritual e preferências.</p>
+         <p className="text-center text-stone-500 dark:text-stone-400 mb-8 text-sm px-4">Gerencie sua caminhada espiritual e preferências.</p>
 
          {/* Profile Card */}
          <Card className="p-5 md:p-6 mb-8 flex flex-col md:flex-row items-center gap-4 md:gap-6 text-center md:text-left">
@@ -228,27 +252,148 @@ const Settings: React.FC = () => {
 
                            {isReceived && (
                               <div
-                                 className="mt-1 pl-8 space-y-2 animate-in fadeIn duration-300 w-full"
+                                 className="mt-1 pl-8 space-y-4 animate-in fadeIn duration-300 w-full"
                                  onClick={(e) => e.stopPropagation()}
                               >
                                  <div className="h-px bg-gold-200/30 dark:bg-gold-900/40 w-full my-2" />
-                                 <p className="text-[10px] md:text-xs text-stone-500 dark:text-stone-400 italic">
-                                    {info.placeholder}:
-                                 </p>
-                                 <input
-                                    type="date"
-                                    value={userProfile?.sacramentDates?.[sacrament] || ''}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onChange={(e) => {
-                                       handleUpdateSacramentDate(sacrament, e.target.value);
-                                    }}
-                                    className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg px-3 py-1.5 text-sm text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-gold-400"
-                                 />
+
+                                 <div>
+                                    <p className="text-[10px] md:text-xs text-stone-500 dark:text-stone-400 italic mb-1">
+                                       {info.placeholder}:
+                                    </p>
+                                    <input
+                                       type="date"
+                                       value={userProfile?.sacramentDates?.[sacrament] || ''}
+                                       onClick={(e) => e.stopPropagation()}
+                                       onChange={(e) => {
+                                          handleUpdateSacramentDate(sacrament, e.target.value);
+                                       }}
+                                       className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg px-3 py-1.5 text-sm text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-gold-400"
+                                    />
+                                 </div>
+
+                                 {sacrament === 'Ordem' && (
+                                    <div className="space-y-4 pt-2">
+                                       <div>
+                                          <p className="text-[10px] md:text-xs text-stone-500 dark:text-stone-400 italic mb-1">
+                                             Nível de Ordenação:
+                                          </p>
+                                          <select
+                                             value={userProfile?.holyOrdersDetails?.level || ''}
+                                             onChange={(e) => handleUpdateHolyOrders('level', e.target.value)}
+                                             className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg px-3 py-1.5 text-sm text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-gold-400"
+                                          >
+                                             <option value="">Selecione...</option>
+                                             <option value="Diácono">Diácono</option>
+                                             <option value="Padre">Padre</option>
+                                             <option value="Bispo">Bispo</option>
+                                          </select>
+                                       </div>
+                                       <div>
+                                          <p className="text-[10px] md:text-xs text-stone-500 dark:text-stone-400 italic mb-1">
+                                             Número da Carteira Eclesiástica:
+                                          </p>
+                                          <input
+                                             type="text"
+                                             value={userProfile?.holyOrdersDetails?.idCard || ''}
+                                             onChange={(e) => handleUpdateHolyOrders('idCard', e.target.value)}
+                                             placeholder="Ex: 123456"
+                                             className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg px-3 py-1.5 text-sm text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-gold-400"
+                                          />
+                                       </div>
+                                    </div>
+                                 )}
                               </div>
                            )}
                         </div>
                      );
                   })}
+               </div>
+            </section>
+
+            {/* Section: Address */}
+            <section className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 overflow-hidden shadow-sm">
+               <div className="p-4 bg-stone-50 dark:bg-stone-800/50 border-b border-stone-100 dark:border-stone-800 font-bold text-stone-600 dark:text-stone-300 flex items-center gap-2 text-xs md:text-sm uppercase tracking-wider">
+                  <User size={18} className="text-gold-500" /> Endereço Residencial
+               </div>
+               <div className="p-4 md:p-6 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="col-span-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-stone-400 mb-1 block">CEP</label>
+                        <input
+                           type="text"
+                           value={userProfile?.address?.cep || ''}
+                           onChange={(e) => handleUpdateAddress('cep', e.target.value)}
+                           placeholder="00000-000"
+                           className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg px-3 py-1.5 text-sm text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-gold-400"
+                        />
+                     </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-4">
+                     <div className="col-span-3">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-stone-400 mb-1 block">Logradouro</label>
+                        <input
+                           type="text"
+                           value={userProfile?.address?.street || ''}
+                           onChange={(e) => handleUpdateAddress('street', e.target.value)}
+                           placeholder="Rua, Avenida..."
+                           className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg px-3 py-1.5 text-sm text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-gold-400"
+                        />
+                     </div>
+                     <div className="col-span-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-stone-400 mb-1 block">Nº</label>
+                        <input
+                           type="text"
+                           value={userProfile?.address?.number || ''}
+                           onChange={(e) => handleUpdateAddress('number', e.target.value)}
+                           placeholder="123"
+                           className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg px-3 py-1.5 text-sm text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-gold-400"
+                        />
+                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-stone-400 mb-1 block">Bairro</label>
+                        <input
+                           type="text"
+                           value={userProfile?.address?.neighborhood || ''}
+                           onChange={(e) => handleUpdateAddress('neighborhood', e.target.value)}
+                           className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg px-3 py-1.5 text-sm text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-gold-400"
+                        />
+                     </div>
+                     <div>
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-stone-400 mb-1 block">Complemento</label>
+                        <input
+                           type="text"
+                           value={userProfile?.address?.complement || ''}
+                           onChange={(e) => handleUpdateAddress('complement', e.target.value)}
+                           placeholder="Apto, Bloco..."
+                           className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg px-3 py-1.5 text-sm text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-gold-400"
+                        />
+                     </div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-4">
+                     <div className="col-span-3">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-stone-400 mb-1 block">Cidade</label>
+                        <input
+                           type="text"
+                           value={userProfile?.address?.city || ''}
+                           onChange={(e) => handleUpdateAddress('city', e.target.value)}
+                           className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg px-3 py-1.5 text-sm text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-gold-400"
+                        />
+                     </div>
+                     <div className="col-span-1">
+                        <label className="text-[10px] uppercase tracking-wider font-bold text-stone-400 mb-1 block">UF</label>
+                        <input
+                           type="text"
+                           maxLength={2}
+                           value={userProfile?.address?.state || ''}
+                           onChange={(e) => handleUpdateAddress('state', e.target.value.toUpperCase())}
+                           placeholder="SP"
+                           className="w-full bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-lg px-3 py-1.5 text-sm text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-gold-400 text-center uppercase"
+                        />
+                     </div>
+                  </div>
                </div>
             </section>
 

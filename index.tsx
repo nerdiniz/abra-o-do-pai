@@ -14,7 +14,8 @@ root.render(
   </React.StrictMode>
 );
 
-// Register Service Worker for PWA
+// Service Worker disabled to prevent caching issues during development
+/*
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then(registration => {
@@ -24,3 +25,4 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+*/

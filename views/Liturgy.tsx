@@ -200,7 +200,7 @@ const Liturgy: React.FC = () => {
                   <p className="text-stone-400 dark:text-stone-500 font-bold text-xs">({(reading as any).referencia})</p>
                 </div>
 
-                <div className="font-reading text-xs md:text-xl leading-snug md:leading-loose text-stone-800 dark:text-stone-200 whitespace-pre-wrap text-left md:text-justify overflow-hidden break-words">
+                <div className="font-reading text-base md:text-xl leading-relaxed md:leading-loose text-stone-800 dark:text-stone-200 whitespace-pre-wrap text-left md:text-justify overflow-hidden break-words">
                   {/* Dropcap for visual flair - Hidden on small mobile to avoid layout breaks */}
                   <span className="hidden md:block float-left text-6xl font-serif text-gold-500 pr-4 pt-2 font-bold leading-[0.8]">
                     {(reading as any).texto.charAt(0)}

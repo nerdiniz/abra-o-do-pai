@@ -1,18 +1,51 @@
-rules_version='2'
-
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // ---------------------------------------------------------
+    // PUBLIC CATALOG DATA (Read: Everyone | Write: Admin Only)
+    // ---------------------------------------------------------
+    
+    // Novena Catalog: Public Read (anyone can see available prayers)
+    match /novena_catalog/{novenaId} {
+      allow read: if true;
+      allow write: if false; 
+    }
+    
+    // Rosary Mysteries: Public Read
+    match /rosary_mysteries/{mysteryId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ---------------------------------------------------------
+    // USER DATA (Read/Write: Owner Only)
+    // ---------------------------------------------------------
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow access to all subcollections for the owner
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // ---------------------------------------------------------
+    // COMMUNITY FEATURES (Authenticated Users)
+    // ---------------------------------------------------------
+
+    // Help Requests
+    // Authenticated users can create and read (needed for Priests)
+    // Only owner or admin can update/delete
+    match /help_requests/{requestId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null;
+      allow update, delete: if request.auth != null && (request.auth.uid == resource.data.userId);
+    }
+    
+    // Default Deny for anything else
     match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 3, 11);
+      allow read, write: if false;
     }
   }
 }

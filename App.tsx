@@ -7,11 +7,16 @@ import Liturgy from './views/Liturgy';
 import Journal from './views/Journal';
 import Novenas from './views/Novenas';
 import Settings from './views/Settings';
+import Examen from './views/Examen';
+import RequestHelp from './views/RequestHelp';
+import AssistBrother from './views/AssistBrother';
+import MyRequests from './views/MyRequests';
+import Chat from './views/Chat';
 import Login from './views/auth/Login';
 import Register from './views/auth/Register';
-import { Menu } from 'lucide-react';
+import { Menu, MessageSquare } from 'lucide-react';
 import { ThemeProvider } from './components/ThemeProvider';
-import { auth } from './firebase';
+import { auth, db, doc, getDoc, setDoc, updateDoc, collection, query, where, onSnapshot } from './firebase';
 
 const AppContent: React.FC = () => {
   const [user, setUser] = useState<any>(null);
@@ -19,7 +24,15 @@ const AppContent: React.FC = () => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.DASHBOARD);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [userProfile, setUserProfile] = useState<{ name: string; email: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [activeChatRequestId, setActiveChatRequestId] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{ id: string, message: string, requester: string } | null>(null);
+
+  const openChat = (requestId: string) => {
+    setActiveChatRequestId(requestId);
+    setCurrentView(ViewState.CHAT);
+    setNotification(null);
+  };
 
   // Global State (Transitioning to Firebase)
   const [userStats, setUserStats] = useState<UserStats>({
@@ -28,51 +41,126 @@ const AppContent: React.FC = () => {
     dailyStreak: 0,
   });
 
-  const [novenas] = useState<Novena[]>([]);
+  const [novenas, setNovenas] = useState<Novena[]>([]);
 
   useEffect(() => {
+    // Fail-safe to ensure loading ends even if Firebase hangs
+    const timer = setTimeout(() => {
+      console.log("[App] Initialization timeout reached. Forcing loading to false.");
+      setLoading(false);
+    }, 5000);
+
+    // Seeding function (temporary)
+    const seedNovenas = async () => {
+      try {
+        const { getDocs, setDoc, doc, collection } = await import('./firebase');
+        const snapshot = await getDocs(collection(db, "novena_catalog"));
+        if (snapshot.size < 50) {
+          console.log("[App] Seeding/Updating novena catalog (items: " + snapshot.size + ")...");
+          const response = await fetch('/novenasData.json');
+          const data = await response.json();
+          for (const item of data) {
+            await setDoc(doc(db, "novena_catalog", item.id), item);
+          }
+          console.log("[App] Seeding complete.");
+        }
+      } catch (err) {
+        console.error("[App] Seeding error:", err);
+      }
+    };
+    seedNovenas();
+
     const unsubscribe = auth.onAuthStateChanged(async (firebaseUser: any) => {
+      clearTimeout(timer);
+      console.log("[App] onAuthStateChanged fired. User:", firebaseUser ? firebaseUser.email : "none");
       setUser(firebaseUser);
       if (firebaseUser) {
         try {
-          const { doc, getDoc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js") as any;
-          const { db } = await import("./firebase.js") as any;
-          const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            setUserProfile(data);
-            if (data.stats) {
-              setUserStats(data.stats);
+          console.log("[App] Setting up Firestore listeners...");
+          // User Profile Listener
+          const profileUnsub = onSnapshot(doc(db, "users", firebaseUser.uid), (snapshot: any) => {
+            if (snapshot.exists()) {
+              const data = snapshot.data();
+              setUserProfile({ ...data, uid: firebaseUser.uid });
+              if (data.stats) setUserStats(data.stats);
+            } else {
+              const initialProfile = {
+                name: "Fiel",
+                email: firebaseUser.email,
+                stats: { massCount: 0, rosariesPrayed: 0, dailyStreak: 0 }
+              };
+              setDoc(doc(db, "users", firebaseUser.uid), initialProfile);
+              setUserProfile({ ...initialProfile, uid: firebaseUser.uid });
             }
-          } else {
-            const initialProfile = {
-              name: "Fiel",
-              email: firebaseUser.email,
-              stats: { massCount: 0, rosariesPrayed: 0, dailyStreak: 0 }
-            };
-            await setDoc(doc(db, "users", firebaseUser.uid), initialProfile);
-            setUserProfile(initialProfile);
-            setUserStats(initialProfile.stats);
-          }
+          });
+
+          // Global Notification Listener for Chat
+          const qRequester = query(collection(db, "help_requests"), where("userId", "==", firebaseUser.uid));
+          const qPriest = query(collection(db, "help_requests"), where("assistingPriestId", "==", firebaseUser.uid));
+
+          const handleSnap = (snapshot: any) => {
+            snapshot.docChanges().forEach((change: any) => {
+              if (change.type === "modified") {
+                const data = change.doc.data();
+                const requestId = change.doc.id;
+
+                const isPriest = firebaseUser.uid === data.assistingPriestId;
+                const lastRead = isPriest ? data.lastReadAt_priest : data.lastReadAt_requester;
+
+                if (data.lastMessageAt && data.lastSenderId !== firebaseUser.uid) {
+                  if (!lastRead || data.lastMessageAt.seconds > lastRead.seconds) {
+                    // Only notify if chat is NOT open or NOT active for this request
+                    setNotification({
+                      id: requestId,
+                      message: data.lastMessageText || "Nova mensagem recebida",
+                      requester: data.userName || "Irmão"
+                    });
+
+                    // Auto-hide notification after 5 seconds
+                    setTimeout(() => setNotification(null), 5000);
+                  }
+                }
+              }
+            });
+          };
+
+          const unsubReq = onSnapshot(qRequester, handleSnap);
+          const unsubPriest = onSnapshot(qPriest, handleSnap);
+
+          // Active Novenas Listener
+          const novenasUnsub = onSnapshot(collection(db, "users", firebaseUser.uid, "novenas"), (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Novena[];
+            console.log("[App] Active novenas updated:", data.length);
+            setNovenas(data);
+          });
+
+          return () => {
+            profileUnsub();
+            unsubReq();
+            unsubPriest();
+            novenasUnsub();
+          };
         } catch (err) {
-          console.error("Error fetching user profile:", err);
-          setUserProfile({ name: "Fiel", email: firebaseUser.email });
+          console.error("[App] Error setting up listeners:", err);
+          setLoading(false);
         }
       } else {
+        console.log("[App] No user, clearing profile.");
         setUserProfile(null);
       }
+      console.log("[App] Setting loading to false.");
       setLoading(false);
     });
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   const handleUpdateStats = async (newStats: UserStats) => {
     setUserStats(newStats);
     if (user) {
       try {
-        const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js") as any;
-        const { db } = await import("./firebase.js") as any;
         await updateDoc(doc(db, "users", user.uid), { stats: newStats });
       } catch (err) {
         console.error("Error updating stats in Firestore:", err);
@@ -92,6 +180,23 @@ const AppContent: React.FC = () => {
         return <Journal />;
       case ViewState.NOVENAS:
         return <Novenas novenas={novenas} />;
+      case ViewState.EXAMEN:
+        return <Examen />;
+      case ViewState.HELP:
+        return <RequestHelp userProfile={userProfile} onOpenChat={openChat} />;
+      case ViewState.ASSIST:
+        return <AssistBrother userProfile={userProfile} onOpenChat={openChat} />;
+      case ViewState.CHAT:
+        return activeChatRequestId ? (
+          <Chat
+            requestId={activeChatRequestId}
+            userProfile={userProfile}
+            onBack={() => {
+              const backView = userProfile?.sacraments?.includes('Ordem') ? ViewState.ASSIST : ViewState.HELP;
+              setCurrentView(backView);
+            }}
+          />
+        ) : <Dashboard stats={userStats} updateStats={handleUpdateStats} novenas={novenas} userName={userProfile?.name || 'Fiel'} />;
       case ViewState.SETTINGS:
         return <Settings />;
       default:
@@ -102,7 +207,10 @@ const AppContent: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-stone-950 transition-colors">
-        <div className="w-12 h-12 border-4 border-gold-400 border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-gold-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-stone-500 text-xs font-bold uppercase tracking-widest animate-pulse">Iniciando a Jornada...</p>
+        </div>
       </div>
     );
   }
@@ -128,6 +236,7 @@ const AppContent: React.FC = () => {
         onChangeView={setCurrentView}
         isOpen={isSidebarOpen}
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        userProfile={userProfile}
       />
 
       <div className="flex-1 md:ml-64 transition-all duration-300">
@@ -140,8 +249,25 @@ const AppContent: React.FC = () => {
         </div>
 
         {/* Main Content Area */}
-        <main className="p-4 md:p-8 lg:p-12 max-w-7xl mx-auto min-h-[calc(100vh-4rem)] pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        <main className="p-4 md:p-8 lg:p-12 max-w-7xl mx-auto min-h-[calc(100vh-4rem)] pb-[calc(1rem+env(safe-area-inset-bottom))] relative">
           {renderView()}
+
+          {/* Notification Toast */}
+          {notification && currentView !== ViewState.CHAT && (
+            <div
+              onClick={() => openChat(notification.id)}
+              className="fixed bottom-6 right-6 left-6 md:left-auto md:w-80 bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 p-4 rounded-2xl shadow-2xl border border-gold-500/30 flex items-center gap-4 cursor-pointer animate-in slide-in-from-bottom-10 duration-500 z-50 hover:scale-[1.02] active:scale-95 transition-all"
+            >
+              <div className="w-10 h-10 bg-gold-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-lg shadow-gold-500/20">
+                <MessageSquare size={20} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gold-400 mb-0.5">Nova Mensagem</p>
+                <p className="text-sm font-bold truncate">{notification.requester}</p>
+                <p className="text-xs opacity-70 truncate italic">"{notification.message}"</p>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

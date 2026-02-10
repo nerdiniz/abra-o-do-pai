@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, RefreshCw, Music, BookOpen, CheckCircle2 } f
 import Card from '../components/ui/Card';
 import ProgressBar from '../components/ui/ProgressBar';
 import Button from '../components/ui/Button';
+import { auth, db, doc, getDoc, setDoc, collection, getDocs, serverTimestamp } from '../firebase';
 import { UserStats } from '../types';
 
 interface RosaryProps {
@@ -25,6 +26,7 @@ const Rosary: React.FC<RosaryProps> = ({ stats, updateStats }) => {
   const [currentMysteryIndex, setCurrentMysteryIndex] = useState(0); // 0-4
   const [prayerStep, setPrayerStep] = useState<'mystery' | 'parentoster' | 'avemaria' | 'salveregina' | 'finished'>('mystery');
   const [beadCount, setBeadCount] = useState(0); // 0-10 for Ave Maria
+  const [updatingToggle, setUpdatingToggle] = useState(false);
 
   const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 
@@ -39,13 +41,24 @@ const Rosary: React.FC<RosaryProps> = ({ stats, updateStats }) => {
 
   const currentSet = getSetByDay(dayOfWeek);
 
+  const toggleFixedTask = async () => {
+    if (!auth.currentUser || updatingToggle) return;
+    setUpdatingToggle(true);
+    try {
+      const newValue = !stats.rosaryFixedTask;
+      await updateStats({ ...stats, rosaryFixedTask: newValue });
+    } catch (err) {
+      console.error("Error updating rosary toggle:", err);
+    } finally {
+      setUpdatingToggle(false);
+    }
+  };
+
   useEffect(() => {
     const fetchMysteries = async () => {
+      // ... existing useEffect logic ...
       setLoading(true);
       try {
-        const { auth } = await import("../firebase.js") as any;
-        const { collection, getDocs, setDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js") as any;
-        const { db } = await import("../firebase.js") as any;
 
         const mysteriesRef = collection(db, "rosary_mysteries");
         const querySnapshot = await getDocs(mysteriesRef);
@@ -105,8 +118,6 @@ const Rosary: React.FC<RosaryProps> = ({ stats, updateStats }) => {
   const handleManualSeed = async () => {
     setLoading(true);
     try {
-      const { setDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js") as any;
-      const { db } = await import("../firebase.js") as any;
       const seedData = [
         { set: "Gozosos", order: 1, title: "Anunciação do Anjo a Maria", reflection: "Humildade e aceitação da vontade de Deus", days: ["Monday", "Saturday"] },
         { set: "Gozosos", order: 2, title: "Visitação de Maria a Santa Isabel", reflection: "Caridade e serviço ao próximo", days: ["Monday", "Saturday"] },
@@ -191,7 +202,8 @@ const Rosary: React.FC<RosaryProps> = ({ stats, updateStats }) => {
     setPrayerStep('finished');
     const newStats = {
       ...stats,
-      rosariesPrayed: (stats.rosariesPrayed || 0) + 1
+      rosariesPrayed: (stats.rosariesPrayed || 0) + 1,
+      lastRosaryAt: serverTimestamp()
     };
     updateStats(newStats);
   };
@@ -253,10 +265,25 @@ const Rosary: React.FC<RosaryProps> = ({ stats, updateStats }) => {
     <div className="h-full flex flex-col items-center max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
 
       {/* Header Info */}
-      <div className="w-full flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50 dark:bg-stone-900/50 backdrop-blur-md p-6 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm">
+      <div className="w-full flex flex-col md:flex-row justify-between items-center gap-6 bg-white/50 dark:bg-stone-900/50 backdrop-blur-md p-6 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm">
         <div className="text-center md:text-left">
           <h2 className="text-2xl font-serif font-bold text-stone-800 dark:text-stone-100 italic">Mistérios {currentSet}</h2>
-          <p className="text-stone-500 dark:text-stone-400 text-sm font-medium">Hoje é {dayOfWeek === 'Monday' ? 'Segunda-feira' : dayOfWeek === 'Tuesday' ? 'Terça-feira' : dayOfWeek === 'Wednesday' ? 'Quarta-feira' : dayOfWeek === 'Thursday' ? 'Quinta-feira' : dayOfWeek === 'Friday' ? 'Sexta-feira' : dayOfWeek === 'Saturday' ? 'Sábado' : 'Domingo'}</p>
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mt-1">
+            <p className="text-stone-500 dark:text-stone-400 text-sm font-medium">Hoje é {dayOfWeek === 'Monday' ? 'Segunda-feira' : dayOfWeek === 'Tuesday' ? 'Terça-feira' : dayOfWeek === 'Wednesday' ? 'Quarta-feira' : dayOfWeek === 'Thursday' ? 'Quinta-feira' : dayOfWeek === 'Friday' ? 'Sexta-feira' : dayOfWeek === 'Saturday' ? 'Sábado' : 'Domingo'}</p>
+            <div className="hidden md:block w-px h-3 bg-stone-300 dark:bg-stone-700"></div>
+            <button
+              onClick={toggleFixedTask}
+              disabled={updatingToggle}
+              className="flex items-center justify-center gap-2 group"
+            >
+              <div className={`w-8 h-4 rounded-full relative transition-colors duration-300 ${stats.rosaryFixedTask ? 'bg-gold-400' : 'bg-stone-200 dark:bg-stone-800'}`}>
+                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform duration-300 ${stats.rosaryFixedTask ? 'translate-x-[18px]' : 'translate-x-0.5'}`}></div>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-stone-500 group-hover:text-gold-600 transition-colors">
+                Fixar como compromisso diário
+              </span>
+            </button>
+          </div>
         </div>
         <div className="flex-1 max-w-xs w-full">
           <div className="flex justify-between items-end mb-2">
@@ -287,7 +314,7 @@ const Rosary: React.FC<RosaryProps> = ({ stats, updateStats }) => {
 
           {/* Mystery / Prayer Card */}
           <div className="lg:col-span-12 space-y-6">
-            <Card className="p-0 overflow-hidden shadow-2xl border-stone-100 dark:border-stone-800 bg-white dark:bg-stone-900 min-h-[500px] flex flex-col">
+            <Card className="p-0 overflow-hidden shadow-2xl border-stone-100 dark:border-stone-800 bg-white dark:bg-stone-900 min-h-[500px] flex flex-col max-h-[80vh] overflow-y-auto">
 
               {/* Card Header (Mystery Info) */}
               <div className="bg-stone-50 dark:bg-stone-850 p-8 border-b border-stone-100 dark:border-stone-800 relative">

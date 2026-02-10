@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Lock, User, UserPlus, ChevronLeft } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import { auth } from '../../firebase';
-import { createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { auth, createUserWithEmailAndPassword, updateProfile } from '../../firebase';
 
 interface RegisterProps {
     onLoginClick: () => void;
@@ -33,7 +32,7 @@ const Register: React.FC<RegisterProps> = ({ onLoginClick, onRegisterSuccess }) 
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-stone-50 dark:bg-stone-950 transition-colors duration-300">
+        <div className="min-h-screen flex items-center justify-center p-6 bg-stone-50 dark:bg-stone-950 transition-colors duration-300 overflow-y-auto">
             <div className="max-w-md w-full">
                 <button
                     onClick={onLoginClick}

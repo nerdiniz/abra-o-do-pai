@@ -8,7 +8,10 @@ import {
   Flower,
   Settings,
   Cross,
-  X
+  X,
+  Scale,
+  MessageSquare,
+  History
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -16,15 +19,23 @@ interface SidebarProps {
   onChangeView: (view: ViewState) => void;
   isOpen: boolean;
   toggleSidebar: () => void;
+  userProfile?: any;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, toggleSidebar }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen, toggleSidebar, userProfile }) => {
+
+  const isOrdained = userProfile?.sacraments?.includes('Ordem');
 
   const navItems = [
     { id: ViewState.DASHBOARD, label: 'Início', icon: LayoutDashboard },
     { id: ViewState.ROSARY, label: 'Rezar o Terço', icon: Cross },
     { id: ViewState.LITURGY, label: 'Liturgia Diária', icon: BookOpen },
     { id: ViewState.JOURNAL, label: 'Diário Espiritual', icon: PenLine },
+    { id: ViewState.EXAMEN, label: 'Exame de Consciência', icon: Scale },
+    ...(isOrdained
+      ? [{ id: ViewState.ASSIST, label: 'Auxiliar um Irmão', icon: MessageSquare }]
+      : [{ id: ViewState.HELP, label: 'Pedir Auxílio', icon: MessageSquare }]
+    ),
     { id: ViewState.NOVENAS, label: 'Novenas', icon: Flower },
     { id: ViewState.SETTINGS, label: 'Configurações', icon: Settings },
   ];
