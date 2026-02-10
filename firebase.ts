@@ -1,7 +1,7 @@
 // @ts-ignore
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 // @ts-ignore
-import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, onAuthStateChanged, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, onAuthStateChanged, createUserWithEmailAndPassword, updateProfile, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 // @ts-ignore
 import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, onSnapshot, addDoc, orderBy, serverTimestamp, getDocs, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -21,7 +21,7 @@ export const db = getFirestore(app);
 
 // Re-export common functions
 export {
-    signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, onAuthStateChanged, createUserWithEmailAndPassword, updateProfile,
+    signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, onAuthStateChanged, createUserWithEmailAndPassword, updateProfile, signOut,
     doc, getDoc, setDoc, updateDoc, collection, query, where, onSnapshot, addDoc, orderBy, serverTimestamp, getDocs, deleteDoc, increment
 };
 

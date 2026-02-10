@@ -2,7 +2,7 @@ import React from 'react';
 import { User, Bell, Shield, Moon, Sun, ChevronRight, Check, X, Lock } from 'lucide-react';
 import { useTheme } from '../components/ThemeProvider';
 import Card from '../components/ui/Card';
-import { auth, db, doc, getDoc, updateDoc, sendPasswordResetEmail } from '../firebase';
+import { auth, db, doc, getDoc, updateDoc, sendPasswordResetEmail, signOut } from '../firebase';
 
 const Settings: React.FC = () => {
    const { theme, toggleTheme } = useTheme();
@@ -158,7 +158,7 @@ const Settings: React.FC = () => {
    };
 
    const handleSignOut = async () => {
-      await auth.signOut();
+      await signOut(auth);
       window.location.reload();
    };
 

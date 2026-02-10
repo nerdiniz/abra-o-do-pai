@@ -16,7 +16,7 @@ import Login from './views/auth/Login';
 import Register from './views/auth/Register';
 import { Menu, MessageSquare } from 'lucide-react';
 import { ThemeProvider } from './components/ThemeProvider';
-import { auth, db, doc, getDoc, setDoc, updateDoc, collection, query, where, onSnapshot } from './firebase';
+import { auth, db, doc, getDoc, setDoc, updateDoc, collection, query, where, onSnapshot, onAuthStateChanged } from './firebase';
 
 const AppContent: React.FC = () => {
   const [user, setUser] = useState<any>(null);
@@ -70,7 +70,7 @@ const AppContent: React.FC = () => {
     };
     seedNovenas();
 
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser: any) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: any) => {
       clearTimeout(timer);
       console.log("[App] onAuthStateChanged fired. User:", firebaseUser ? firebaseUser.email : "none");
       setUser(firebaseUser);
