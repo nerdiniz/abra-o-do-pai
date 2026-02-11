@@ -5,6 +5,7 @@ import { CheckCircle, Circle, ChevronRight, Play, Minus, Plus, Clock, X, Flame }
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import ProgressBar from '../components/ui/ProgressBar';
+import CircularProgress from '../components/ui/CircularProgress';
 import { auth, db, doc, getDoc, updateDoc, serverTimestamp } from '../firebase';
 
 interface CandleData {
@@ -190,7 +191,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, updateStats, novenas, user
     { name: 'Concluído', value: completedTasks },
     { name: 'Pendente', value: tasks.length > 0 ? tasks.length - completedTasks : 1 }, // Show 1 for pending if empty to avoid chart errors
   ];
-  const COLORS = ['#fbbd24', '#e7e5e4']; // gold-400, stone-200
+  /* Removed Recharts Colors */
 
   // Effect to sync dynamic tasks
   React.useEffect(() => {
@@ -261,26 +262,15 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, updateStats, novenas, user
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Daily Progress */}
             <Card className="p-6 flex items-center gap-6">
-              <div className="w-24 h-24 relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={progressData}
-                      innerRadius={30}
-                      outerRadius={40}
-                      paddingAngle={5}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {progressData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-lg font-bold text-stone-800 dark:text-stone-100">{Math.round((completedTasks / tasks.length) * 100)}%</span>
-                </div>
+              <div className="w-24 h-24 relative flex-shrink-0">
+                <CircularProgress
+                  value={(completedTasks / tasks.length) * 100}
+                  size={96}
+                  strokeWidth={8}
+                  trackColor="stroke-stone-200 dark:stroke-stone-800"
+                  progressColor="stroke-gold-400"
+                  textColor="text-stone-800 dark:text-stone-100"
+                />
               </div>
               <div>
                 <h3 className="font-bold text-lg text-stone-800 dark:text-stone-100">Progresso Diário</h3>

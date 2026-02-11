@@ -1,0 +1,20 @@
+/* Global Styles */
+body {
+  background-color: #fafaf9; /* stone-50 */
+}
+
+/* Utility Classes */
+.scroll-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(251, 189, 36, 0.2);
+}

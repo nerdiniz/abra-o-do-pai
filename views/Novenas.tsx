@@ -63,7 +63,7 @@ const Novenas: React.FC<NovenasProps> = ({ novenas }) => {
             id: newNovenaRef.id,
             catalogId: selectedNovena.id,
             title: selectedNovena.title,
-            image: selectedNovena.image,
+            image: selectedNovena.image || null,
             currentDay: 1,
             totalDays: selectedNovena.totalDays,
             description: selectedNovena.description,
@@ -135,8 +135,8 @@ const Novenas: React.FC<NovenasProps> = ({ novenas }) => {
          {/* Header */}
          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
             <div>
-               <h1 className="font-serif text-3xl md:text-4xl font-bold text-stone-800 dark:text-stone-100 flex items-center gap-3">
-                  <Book className="text-gold-500" size={32} /> Biblioteca Espiritual
+               <h1 className="font-serif text-2xl md:text-3xl lg:text-4xl font-bold text-stone-800 dark:text-stone-100 flex items-center gap-3">
+                  <Book className="text-gold-500" size={28} /> Biblioteca Espiritual
                </h1>
                <p className="text-stone-500 dark:text-stone-400 mt-2 max-w-lg">
                   Escolha uma novena para guiar sua oração. Cada jornada é um caminho de fé e intercessão.
@@ -194,7 +194,7 @@ const Novenas: React.FC<NovenasProps> = ({ novenas }) => {
                   className="w-full pl-12 pr-4 py-3 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-gold-400 transition-all dark:text-stone-100"
                />
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-2 scroll-hide">
+            <div className="flex flex-wrap gap-2 pb-2">
                {['Todos', 'Santos', 'Maria', 'Cristo', 'Espírito Santo'].map((cat) => (
                   <button
                      key={cat}
@@ -275,8 +275,8 @@ const Novenas: React.FC<NovenasProps> = ({ novenas }) => {
          {/* Detail Modal */}
          {selectedNovena && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-               <Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col p-0">
-                  <div className="relative h-64 flex-shrink-0">
+               <Card className="w-full max-w-2xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col p-0 rounded-2xl">
+                  <div className="relative h-48 md:h-64 flex-shrink-0">
                      {selectedNovena.image ? (
                         <img src={selectedNovena.image} alt={selectedNovena.title} className="w-full h-full object-cover" />
                      ) : (
@@ -299,7 +299,7 @@ const Novenas: React.FC<NovenasProps> = ({ novenas }) => {
                      </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-8 space-y-8 scroll-hide">
+                  <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-6 scroll-hide">
                      <section>
                         <h4 className="text-xs font-bold text-gold-600 dark:text-gold-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
                            <Scroll size={14} /> História & Devoção
@@ -370,7 +370,7 @@ const Novenas: React.FC<NovenasProps> = ({ novenas }) => {
          {/* Intention Modal */}
          {showIntentionModal && selectedNovena && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-stone-900/70 backdrop-blur-md animate-in zoom-in duration-300">
-               <Card className="w-full max-w-md p-8 text-center relative overflow-hidden max-h-[90vh] overflow-y-auto">
+               <Card className="w-full max-w-md p-6 md:p-8 text-center relative overflow-hidden max-h-[90vh] overflow-y-auto rounded-2xl">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gold-400" />
                   <div className="w-16 h-16 bg-gold-50 dark:bg-gold-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
                      <Sparkles className="text-gold-500" size={32} />
@@ -410,8 +410,8 @@ const Novenas: React.FC<NovenasProps> = ({ novenas }) => {
          {/* Active Novena Management Modal */}
          {selectedActiveNovena && (
             <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-stone-900/80 backdrop-blur-md animate-in fade-in duration-300">
-               <Card className="w-full max-w-lg p-0 overflow-hidden shadow-2xl relative max-h-[90vh] flex flex-col">
-                  <div className="h-40 relative flex-shrink-0">
+               <Card className="w-full max-w-lg p-0 overflow-hidden shadow-2xl relative max-h-[85vh] flex flex-col rounded-2xl">
+                  <div className="h-32 md:h-40 relative flex-shrink-0">
                      {selectedActiveNovena.image ? (
                         <img src={selectedActiveNovena.image} alt={selectedActiveNovena.title} className="w-full h-full object-cover" />
                      ) : (
@@ -432,7 +432,7 @@ const Novenas: React.FC<NovenasProps> = ({ novenas }) => {
                      </div>
                   </div>
 
-                  <div className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
+                  <div className="p-5 md:p-8 space-y-6 overflow-y-auto custom-scrollbar">
                      <div className="space-y-2">
                         <div className="flex justify-between items-end">
                            <span className="text-[10px] font-bold text-gold-600 dark:text-gold-500 uppercase tracking-widest">Progresso da Novena</span>

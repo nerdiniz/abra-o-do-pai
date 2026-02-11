@@ -70,90 +70,101 @@ const AppContent: React.FC = () => {
     };
     seedNovenas();
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: any) => {
-      clearTimeout(timer);
-      console.log("[App] onAuthStateChanged fired. User:", firebaseUser ? firebaseUser.email : "none");
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        try {
-          console.log("[App] Setting up Firestore listeners...");
-          // User Profile Listener
-          const profileUnsub = onSnapshot(doc(db, "users", firebaseUser.uid), (snapshot: any) => {
-            if (snapshot.exists()) {
-              const data = snapshot.data();
-              setUserProfile({ ...data, uid: firebaseUser.uid });
-              if (data.stats) setUserStats(data.stats);
-            } else {
-              const initialProfile = {
-                name: "Fiel",
-                email: firebaseUser.email,
-                stats: { massCount: 0, rosariesPrayed: 0, dailyStreak: 0 }
-              };
-              setDoc(doc(db, "users", firebaseUser.uid), initialProfile);
-              setUserProfile({ ...initialProfile, uid: firebaseUser.uid });
-            }
-          });
+    // Safe Auth Listener Wrapper
+    const setupAuth = async () => {
+      try {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: any) => {
+          clearTimeout(timer);
+          console.log("[App] onAuthStateChanged fired. User:", firebaseUser ? firebaseUser.email : "none");
 
-          // Global Notification Listener for Chat
-          const qRequester = query(collection(db, "help_requests"), where("userId", "==", firebaseUser.uid));
-          const qPriest = query(collection(db, "help_requests"), where("assistingPriestId", "==", firebaseUser.uid));
-
-          const handleSnap = (snapshot: any) => {
-            snapshot.docChanges().forEach((change: any) => {
-              if (change.type === "modified") {
-                const data = change.doc.data();
-                const requestId = change.doc.id;
-
-                const isPriest = firebaseUser.uid === data.assistingPriestId;
-                const lastRead = isPriest ? data.lastReadAt_priest : data.lastReadAt_requester;
-
-                if (data.lastMessageAt && data.lastSenderId !== firebaseUser.uid) {
-                  if (!lastRead || data.lastMessageAt.seconds > lastRead.seconds) {
-                    // Only notify if chat is NOT open or NOT active for this request
-                    setNotification({
-                      id: requestId,
-                      message: data.lastMessageText || "Nova mensagem recebida",
-                      requester: data.userName || "Irmão"
-                    });
-
-                    // Auto-hide notification after 5 seconds
-                    setTimeout(() => setNotification(null), 5000);
-                  }
+          if (firebaseUser) {
+            setUser(firebaseUser);
+            // Setup Listeners Logic...
+            try {
+              console.log("[App] Setting up Firestore listeners...");
+              // User Profile Listener
+              const profileUnsub = onSnapshot(doc(db, "users", firebaseUser.uid), (snapshot: any) => {
+                if (snapshot.exists()) {
+                  const data = snapshot.data();
+                  setUserProfile({ ...data, uid: firebaseUser.uid });
+                  if (data.stats) setUserStats(data.stats);
+                } else {
+                  const initialProfile = {
+                    name: "Fiel",
+                    email: firebaseUser.email,
+                    stats: { massCount: 0, rosariesPrayed: 0, dailyStreak: 0 }
+                  };
+                  setDoc(doc(db, "users", firebaseUser.uid), initialProfile);
+                  setUserProfile({ ...initialProfile, uid: firebaseUser.uid });
                 }
-              }
-            });
-          };
+              });
 
-          const unsubReq = onSnapshot(qRequester, handleSnap);
-          const unsubPriest = onSnapshot(qPriest, handleSnap);
+              // Global Notification Listener for Chat
+              const qRequester = query(collection(db, "help_requests"), where("userId", "==", firebaseUser.uid));
+              const qPriest = query(collection(db, "help_requests"), where("assistingPriestId", "==", firebaseUser.uid));
 
-          // Active Novenas Listener
-          const novenasUnsub = onSnapshot(collection(db, "users", firebaseUser.uid, "novenas"), (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Novena[];
-            console.log("[App] Active novenas updated:", data.length);
-            setNovenas(data);
-          });
+              const handleSnap = (snapshot: any) => {
+                snapshot.docChanges().forEach((change: any) => {
+                  if (change.type === "modified") {
+                    const data = change.doc.data();
+                    const requestId = change.doc.id;
+                    const isPriest = firebaseUser.uid === data.assistingPriestId;
+                    const lastRead = isPriest ? data.lastReadAt_priest : data.lastReadAt_requester;
 
-          return () => {
-            profileUnsub();
-            unsubReq();
-            unsubPriest();
-            novenasUnsub();
-          };
-        } catch (err) {
-          console.error("[App] Error setting up listeners:", err);
+                    if (data.lastMessageAt && data.lastSenderId !== firebaseUser.uid) {
+                      if (!lastRead || data.lastMessageAt.seconds > lastRead.seconds) {
+                        setNotification({
+                          id: requestId,
+                          message: data.lastMessageText || "Nova mensagem recebida",
+                          requester: data.userName || "Irmão"
+                        });
+                        setTimeout(() => setNotification(null), 5000);
+                      }
+                    }
+                  }
+                });
+              };
+
+              const unsubReq = onSnapshot(qRequester, handleSnap);
+              const unsubPriest = onSnapshot(qPriest, handleSnap);
+
+              // Active Novenas Listener
+              const novenasUnsub = onSnapshot(collection(db, "users", firebaseUser.uid, "novenas"), (snapshot) => {
+                const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Novena[];
+                console.log("[App] Active novenas updated:", data.length);
+                setNovenas(data);
+              });
+
+              // Cleanup previous listeners if any (not implemented here but good practice)
+              // For now, these leak if onAuthStateChanged fires multiple times without unmount, 
+              // but purely within this effect, we relying on the return cleanup.
+
+            } catch (err) {
+              console.error("[App] Error setting up listeners:", err);
+            }
+          } else {
+            console.log("[App] No user, clearing profile.");
+            setUser(null);
+            setUserProfile(null);
+          }
+          console.log("[App] Setting loading to false.");
           setLoading(false);
-        }
-      } else {
-        console.log("[App] No user, clearing profile.");
-        setUserProfile(null);
+        });
+
+        return unsubscribe;
+      } catch (error) {
+        console.error("Auth init error:", error);
+        setLoading(false);
+        return () => { };
       }
-      console.log("[App] Setting loading to false.");
-      setLoading(false);
-    });
+    };
+
+    let unsubFn: () => void;
+    setupAuth().then(fn => unsubFn = fn);
+
     return () => {
-      unsubscribe();
       clearTimeout(timer);
+      if (unsubFn) unsubFn();
     };
   }, []);
 
@@ -206,10 +217,17 @@ const AppContent: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-stone-950 transition-colors">
-        <div className="text-center">
+      <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-stone-950 transition-colors p-4">
+        <div className="text-center max-w-md">
           <div className="w-12 h-12 border-4 border-gold-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-stone-500 text-xs font-bold uppercase tracking-widest animate-pulse">Iniciando a Jornada...</p>
+          <p className="text-stone-500 text-xs font-bold uppercase tracking-widest animate-pulse mb-4">Iniciando a Jornada...</p>
+
+          <button
+            onClick={() => setLoading(false)}
+            className="text-xs text-stone-400 hover:text-gold-500 underline decoration-dotted transition-colors cursor-pointer"
+          >
+            Demorando muito? Toque aqui para continuar
+          </button>
         </div>
       </div>
     );

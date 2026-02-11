@@ -40,7 +40,14 @@ service cloud.firestore {
     match /help_requests/{requestId} {
       allow create: if request.auth != null;
       allow read: if request.auth != null;
-      allow update, delete: if request.auth != null && (request.auth.uid == resource.data.userId);
+      // Allow updates by authenticated users (e.g. priests claiming, or owner editing)
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null && (request.auth.uid == resource.data.userId);
+
+      // Messages Subcollection
+      match /messages/{messageId} {
+        allow read, create: if request.auth != null;
+      }
     }
     
     // Default Deny for anything else

@@ -120,18 +120,18 @@ const Journal: React.FC = () => {
   const Icon = activeInfo?.icon || PenTool;
 
   return (
-    <div className="h-full flex flex-col lg:flex-row gap-6 animate-in fadeIn slide-in-from-bottom-4 duration-700">
+    <div className="h-[calc(100dvh-5rem)] md:h-full flex flex-col xl:flex-row gap-4 md:gap-6 animate-in fadeIn slide-in-from-bottom-4 duration-700">
 
       {/* Sidebar Navigation */}
-      <div className="w-full lg:w-72 flex flex-col gap-4 shrink-0">
+      <div className="w-full xl:w-72 flex flex-col gap-4 shrink-0">
         <div className="px-2">
-          <h2 className="font-serif text-3xl font-bold text-stone-800 dark:text-stone-100 flex items-center gap-2">
+          <h2 className="font-serif text-2xl md:text-3xl font-bold text-stone-800 dark:text-stone-100 flex items-center gap-2">
             <PenTool className="text-gold-500" /> Diário
           </h2>
           <p className="text-xs text-stone-400 dark:text-stone-500 mt-1 uppercase tracking-widest font-bold">Reflexões da Alma</p>
         </div>
 
-        <div className="flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 scroll-hide">
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:flex xl:flex-col gap-2 pb-2 xl:pb-0">
           {sections.map(section => {
             const SectionIcon = section.icon;
             const isActive = activeSection === section.id;
@@ -142,7 +142,7 @@ const Journal: React.FC = () => {
                   setActiveSection(section.id as any);
                   setEditingId(null);
                 }}
-                className={`flex items-center gap-3 p-3 lg:p-4 rounded-2xl transition-all text-left whitespace-nowrap lg:whitespace-normal shrink-0 group relative overflow-hidden ${isActive
+                className={`flex items-center gap-2 p-2 md:p-3 lg:p-4 rounded-2xl transition-all text-left xl:whitespace-normal shrink-0 group relative overflow-hidden ${isActive
                   ? 'bg-white dark:bg-stone-900 shadow-xl shadow-gold-900/5 dark:shadow-black/20 border border-stone-100 dark:border-stone-800'
                   : 'hover:bg-white/50 dark:hover:bg-stone-800/40 text-stone-500 dark:text-stone-400'
                   }`}
@@ -150,7 +150,7 @@ const Journal: React.FC = () => {
                 {isActive && (
                   <div className={`absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b ${section.color}`} />
                 )}
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 ${isActive ? `bg-gradient-to-br ${section.color} text-white` : 'bg-stone-100 dark:bg-stone-800 text-stone-400'
+                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 ${isActive ? `bg-gradient-to-br ${section.color} text-white` : 'bg-stone-100 dark:bg-stone-800 text-stone-400'
                   }`}>
                   <SectionIcon size={20} />
                 </div>
@@ -159,7 +159,7 @@ const Journal: React.FC = () => {
                     {section.label}
                   </span>
                   {isActive && (
-                    <span className="text-[10px] text-stone-400 dark:text-stone-500 tabular-nums">
+                    <span className="text-[10px] text-stone-400 dark:text-stone-500 tabular-nums hidden sm:block">
                       {entries.filter(e => e.type === section.id).length} registros
                     </span>
                   )}
@@ -171,10 +171,10 @@ const Journal: React.FC = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col gap-6 min-h-0">
+      <div className="flex-1 flex flex-col gap-4 md:gap-6 min-h-0 min-w-0">
 
         {/* Entries Container */}
-        <Card className="flex-1 flex flex-col overflow-hidden bg-white/80 dark:bg-stone-900/80 backdrop-blur-xl border-stone-100 dark:border-stone-800 shadow-2xl shadow-stone-200/50 dark:shadow-none">
+        <Card className="flex-1 flex flex-col overflow-hidden bg-white/80 dark:bg-stone-900/80 backdrop-blur-xl border-stone-100 dark:border-stone-800 shadow-2xl shadow-stone-200/50 dark:shadow-none mb-14 md:mb-0">
 
           {/* Active Section Info (Visible only on empty state or small header) */}
           <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800 bg-stone-50/30 dark:bg-stone-800/20 flex items-center justify-between">
@@ -225,7 +225,7 @@ const Journal: React.FC = () => {
                       <div className="absolute left-0 top-0 bottom-0 w-px bg-stone-100 dark:bg-stone-800 group-last:bg-transparent" />
                       <div className="absolute left-[-4px] top-6 w-2 h-2 rounded-full border-2 border-gold-500 bg-white dark:bg-stone-950 shadow-[0_0_10px_rgba(234,179,8,0.3)]" />
 
-                      <div className="bg-stone-50/50 dark:bg-stone-800/20 border border-stone-100 dark:border-stone-800 rounded-3xl p-5 md:p-7 hover:shadow-xl hover:shadow-gold-900/5 dark:hover:shadow-none hover:border-gold-200 dark:hover:border-gold-900/30 transition-all duration-300">
+                      <div className="bg-stone-50/50 dark:bg-stone-800/20 border border-stone-100 dark:border-stone-800 rounded-3xl p-3 md:p-7 hover:shadow-xl hover:shadow-gold-900/5 dark:hover:shadow-none hover:border-gold-200 dark:hover:border-gold-900/30 transition-all duration-300">
                         <div className="flex justify-between items-center mb-4">
                           <div className="flex items-center gap-3">
                             <span className="text-[10px] uppercase font-black tracking-widest text-gold-600 dark:text-gold-500 bg-gold-50 dark:bg-gold-900/20 px-3 py-1 rounded-full border border-gold-100 dark:border-gold-900/30 tabular-nums">
@@ -282,19 +282,20 @@ const Journal: React.FC = () => {
                     e.currentTarget.style.height = 'auto';
                     e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px';
                   }}
-                  className="w-full bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-2xl px-5 py-4 text-stone-800 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-gold-400/30 transition-all min-h-[60px] max-h-[200px] resize-none font-serif text-md"
+                  className="w-full bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-2xl px-4 py-3 text-stone-800 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-gold-400/30 transition-all min-h-[60px] max-h-[200px] resize-none font-serif text-md"
                 />
-                <div className="flex justify-between items-center px-1">
-                  <span className="text-[10px] text-stone-400 tracking-wide uppercase font-bold tabular-nums">
+                <div className="flex justify-between items-center px-1 gap-4">
+                  <span className="text-[10px] text-stone-400 tracking-wide uppercase font-bold tabular-nums shrink-0">
                     {newContent.length} caracteres
                   </span>
                   <Button
                     onClick={handleAddEntry}
                     disabled={!newContent.trim() || saving}
-                    className="gap-2 rounded-xl h-10 px-6 shadow-lg shadow-gold-500/20"
+                    className="flex-1 md:flex-none gap-2 rounded-xl h-10 px-6 shadow-lg shadow-gold-500/20 justify-center"
                   >
                     {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Plus size={18} />}
-                    Registrar
+                    <span className="hidden xs:inline">Registrar</span>
+                    <span className="xs:hidden">Salvar</span>
                   </Button>
                 </div>
               </div>

@@ -93,7 +93,14 @@ const AssistBrother: React.FC<AssistBrotherProps> = ({ userProfile, onOpenChat }
     }).sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
 
     const handleAction = async (requestId: string, action: 'claim' | 'complete' | 'cancel') => {
+        if (!auth.currentUser) {
+            console.error("User not authenticated.");
+            alert("Você precisa estar autenticado para realizar esta ação.");
+            return;
+        }
+
         try {
+            console.log(`Attempting to ${action} request: ${requestId}`);
             const updates: any = {};
             if (action === 'claim') {
                 updates.status = 'assisting';
@@ -113,8 +120,10 @@ const AssistBrother: React.FC<AssistBrotherProps> = ({ userProfile, onOpenChat }
             }
 
             await updateDoc(doc(db, "help_requests", requestId), updates);
+            console.log(`Action ${action} successful for request: ${requestId}`);
         } catch (err) {
             console.error(`Error performing ${action} on request:`, err);
+            alert(`Erro ao processar ação: ${err}`);
         }
     };
 
@@ -159,19 +168,20 @@ const AssistBrother: React.FC<AssistBrotherProps> = ({ userProfile, onOpenChat }
     return (
         <div className="h-full flex flex-col gap-6 animate-in fadeIn duration-700">
             {/* Header */}
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <h2 className="font-serif text-3xl font-bold text-stone-800 dark:text-stone-100 flex items-center gap-3">
-                            <Handshake className="text-gold-500" /> Auxiliar um Irmão
+                        <h2 className="font-serif text-2xl md:text-3xl font-bold text-stone-800 dark:text-stone-100 flex items-center gap-3">
+                            <Handshake className="text-gold-500 w-6 h-6 md:w-8 md:h-8" />
+                            <span className="truncate">Auxiliar um Irmão</span>
                         </h2>
-                        <p className="text-stone-500 dark:text-stone-400 mt-1 italic flex items-center gap-2">
+                        <p className="text-sm md:text-base text-stone-500 dark:text-stone-400 mt-1 italic flex items-center gap-2">
                             <MapPin size={14} className="text-gold-500" />
-                            Pedidos em {userProfile.address.city}
+                            Pedidos em <span className="uppercase font-bold">{userProfile.address.city}</span>
                         </p>
                     </div>
                     {userProfile?.stats?.helpsProvided > 0 && (
-                        <div className="text-[10px] font-bold text-gold-600 dark:text-gold-500 uppercase tracking-tighter bg-gold-50 dark:bg-gold-900/20 px-2 py-1 rounded-lg border border-gold-200/50">
+                        <div className="text-[10px] font-bold text-gold-600 dark:text-gold-500 uppercase tracking-tighter bg-gold-50 dark:bg-gold-900/20 px-2 py-1 rounded-lg border border-gold-200/50 self-start md:self-auto whitespace-nowrap">
                             {userProfile.stats.helpsProvided < 5 ? 'Servo da Vinha' :
                                 userProfile.stats.helpsProvided < 15 ? 'Irmão Samaritano' :
                                     userProfile.stats.helpsProvided < 30 ? 'Discípulo da Caridade' :
@@ -182,16 +192,16 @@ const AssistBrother: React.FC<AssistBrotherProps> = ({ userProfile, onOpenChat }
                 </div>
 
                 {/* Sub-Header Tabs & Filters */}
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                     {/* Help Type Tabs */}
-                    <div className="flex overflow-x-auto pb-2 scrollbar-hide gap-1 bg-stone-100 dark:bg-stone-900/50 p-1 rounded-2xl border border-stone-100 dark:border-stone-800">
+                    <div className="flex overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide gap-2 mask-linear-fade">
                         {helpTypes.map(type => (
                             <button
                                 key={type.id}
                                 onClick={() => setActiveType(type.id)}
-                                className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeType === type.id
-                                    ? 'bg-white dark:bg-stone-800 text-gold-600 dark:text-gold-400 shadow-sm'
-                                    : 'text-stone-400 hover:text-stone-600 dark:hover:text-stone-300'
+                                className={`px-4 md:px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${activeType === type.id
+                                    ? 'bg-white dark:bg-stone-800 text-gold-600 dark:text-gold-400 shadow-sm border border-stone-100 dark:border-stone-700'
+                                    : 'text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 bg-stone-100 dark:bg-stone-900/50'
                                     }`}
                             >
                                 {type.label}
@@ -200,12 +210,12 @@ const AssistBrother: React.FC<AssistBrotherProps> = ({ userProfile, onOpenChat }
                     </div>
 
                     {/* Status Filters */}
-                    <div className="flex gap-2">
+                    <div className="flex overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide gap-2">
                         {statusFilters.map(filter => (
                             <button
                                 key={filter.id}
                                 onClick={() => setActiveStatus(filter.id as any)}
-                                className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all ${activeStatus === filter.id
+                                className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all whitespace-nowrap shrink-0 ${activeStatus === filter.id
                                     ? 'bg-gold-500 border-gold-500 text-white shadow-lg shadow-gold-500/20'
                                     : 'bg-white dark:bg-stone-900 border-stone-100 dark:border-stone-800 text-stone-400 hover:border-stone-300'
                                     }`}
@@ -233,24 +243,25 @@ const AssistBrother: React.FC<AssistBrotherProps> = ({ userProfile, onOpenChat }
                     {filteredRequests.map(req => (
                         <Card key={req.id} className="relative overflow-hidden border-stone-100 dark:border-stone-800 hover:shadow-xl transition-all flex flex-col group">
                             {/* Status Badge */}
-                            <div className={`absolute top-4 right-4 flex items-center gap-2 z-10`}>
+                            <div className="absolute top-4 right-4 flex flex-col items-end gap-2 z-10 pointer-events-none">
                                 {req.lastMessageAt && req.lastSenderId !== userProfile?.uid &&
                                     (!req.lastReadAt_priest || req.lastMessageAt.seconds > req.lastReadAt_priest.seconds) && (
                                         <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-sm shadow-red-500/50" />
                                     )}
-                                <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${getStatusStyles(req.status)}`}>
+                                <div className={`px-2 py-1 rounded-md text-[9px] md:text-[10px] font-black uppercase tracking-tighter shadow-sm whitespace-nowrap ${getStatusStyles(req.status)}`}>
                                     {getStatusLabel(req.status)}
                                 </div>
                             </div>
 
-                            <div className="p-6 flex-1 space-y-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-gold-400 rounded-full flex items-center justify-center text-white group-hover:scale-105 transition-transform">
-                                        <User size={20} />
+                            <div className="p-4 md:p-6 flex-1 space-y-3 md:space-y-4">
+                                <div className="flex items-start gap-3 pr-20 md:pr-0">
+                                    <div className="w-8 h-8 md:w-10 md:h-10 bg-gold-400 rounded-full flex items-center justify-center text-white shrink-0 group-hover:scale-105 transition-transform mt-1">
+                                        <User size={16} className="md:hidden" />
+                                        <User size={20} className="hidden md:block" />
                                     </div>
-                                    <div>
-                                        <h4 className="font-bold text-stone-800 dark:text-stone-100 leading-none">{req.userName}</h4>
-                                        <p className="text-[10px] text-stone-400 mt-1 uppercase font-bold tracking-widest">
+                                    <div className="min-w-0">
+                                        <h4 className="font-bold text-sm md:text-base text-stone-800 dark:text-stone-100 leading-tight truncate">{req.userName}</h4>
+                                        <p className="text-[9px] md:text-[10px] text-stone-400 mt-0.5 uppercase font-bold tracking-widest truncate">
                                             {req.type === 'Spiritual' ? 'Direção Espiritual' :
                                                 req.type === 'Confession' ? 'Confissão' :
                                                     req.type === 'Prayer' ? 'Oração' :
